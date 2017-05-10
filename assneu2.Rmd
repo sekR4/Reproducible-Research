@@ -1,0 +1,198 @@
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### **Coursera: Reproducible Research: Course Project 1**
+Details about this course can be found [here](https://www.coursera.org/learn/reproducible-research). The author of this
+unremarkable markdown is [Sebastian Kraus](https://www.linkedin.com/in/sebastiankrausjena/) and it's his first one. Feedback is highly appreciated :).
+
+###**1. Loading and preprocessing the data**
+
+#### **1.1 Load the data**
+```{r 1.1. Loading EDIT , message=FALSE}
+
+#url <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2Factivity.zip"
+#download.file(url, destfile = "Factivity.zip", method = "auto")
+#unzip("Factivity.zip", exdir = "data")
+
+dta <- read.csv("data/activity.csv")
+
+```
+  
+#### **1.2 Process/transform the data**
+```{r 1.2. Process/transform , message=FALSE}
+library(tidyverse)
+
+dta.n <- mutate(dta, date = as.Date(dta$date))
+dta.n <- filter(dta.n, steps != "NA")
+
+head(dta.n)
+tail(dta.n)
+str(dta.n)
+```
+
+
+### **2. What is mean total number of steps taken per day?**
+
+#### **2.1. Calculate the total number of steps taken per day.**
+```{r 2.1. #steps }
+dta.n.by.day <- group_by(dta.n, date)
+st.p.day <- summarise(dta.n.by.day, sum_steps = sum(steps))
+st.p.day
+```
+
+#### **2.2. Make a histogram of the total number of steps taken each day.**
+```{r 2.2. Histogram steps per day }
+ggplot(data = st.p.day) +
+        geom_histogram(mapping = aes(x = sum_steps),bins = 20, col = "blue",
+                       alpha = 0.5) + 
+        labs(title="Number of steps taken each day",
+             x="Number of steps per day", y="Count")
+```
+
+#### **2.3. Mean and median of the total number of steps per day**
+```{r 2.3. Mean and median steps}
+mean(st.p.day$sum_steps)
+median(st.p.day$sum_steps)
+```
+
+```{r mean and median report ,echo=FALSE}
+st.mean <- mean(st.p.day$sum_steps)
+st.median <- median(st.p.day$sum_steps)
+```
+
+The total numbers of steps per day have a mean of `r sprintf("%.f", st.mean)` and a median of `r st.median`.
+
+
+### **3. What is the average daily activity pattern?**
+
+#### **3.1. Time series plot :5-minute interval and average number of steps**
+
+```{r 3.1 mean per interval and time series}
+
+mean.st.p.int <- summarise(group_by(dta.n, interval), 
+                          mean_steps = mean(steps))
+
+ggplot(data = mean.st.p.int) +
+        geom_line(mapping = aes(x = interval, y = mean_steps)) +
+        labs(title="Average number of steps taken across all days",
+             x="Interval", y="Average number of steps")
+```
+
+
+#### **3.2 Which 5-minute interval contains the maximum number of steps on average?**
+
+```{r 3.2. max steps}
+mean.st.p.int[which.max(mean.st.p.int$mean_steps),]
+```
+
+```{r max numer of steps,echo=FALSE}
+max5 <- mean.st.p.int[which.max(mean.st.p.int$mean_steps),]
+```
+
+The 5-minutes interval at `r max5$interval`, on average across all the days in the dataset, contains the maximum number of `r sprintf("%.f",max5[,2])` steps.
+
+### **4. Imputing missing values**
+
+#### **4.1. Total number of missing values**
+
+```{r 4.1. Number of missing values}
+nrow(dta[which(is.na(dta)==TRUE),])
+```
+
+```{r na2, echo=FALSE}
+NAs <- nrow(dta[which(is.na(dta)==TRUE),])
+```
+
+`r NAs` values are missing.
+
+#### **4.2. Devise a strategy for filling in all of the missing values in the dataset.**
+
+```{r 4.2.}
+
+m.st.p.int <- summarise(group_by(dta,interval), 
+                        mean_steps = mean(steps, na.rm = TRUE))
+```
+
+The NA's for the steps will be replaced by their mean for the corresponding interval.
+
+#### **4.3. Create a new dataset with the missing data filled in.**
+
+```{r 4.3. Creating a new data set}
+
+dta.sim <- dta
+
+for(r in 1:nrow(dta.sim)){
+        if (is.na(dta.sim$steps[r])) {
+                st.all <- m.st.p.int$mean_steps[
+                        m.st.p.int$interval == dta.sim$interval[r]];
+                dta.sim$steps[r] <- st.all}}
+
+summary(dta.sim)
+str(dta.sim)
+```
+
+#### **4.4. Histogram, mean and median of steps taken per day with imputed NA's**
+
+```{r 4.4. histogram}
+
+dta.by.date.sim <- group_by(dta.sim, date)
+
+st.p.day.sim <- summarise(group_by(dta.sim, date), sum_steps = sum(steps))
+
+ggplot(data = st.p.day.sim) +
+        geom_histogram(mapping = aes(x = sum_steps), bins = 20,
+                       col = "blue", alpha = 0.5) +
+        labs(title="Number of steps taken each day", subtitle="With imputed NA's",
+             x="Number of steps per day", y="Count")
+```
+
+```{r}
+# Mean and Median with replaced NA's
+mean(st.p.day.sim$sum_steps); median(st.p.day.sim$sum_steps)
+```
+
+Both mean and median are equal with `r sprintf("%.2f",mean(st.p.day.sim$sum_steps))` steps after replacing the NA's.
+
+```{r}
+# Mean and Median without NA's
+mean(st.p.day$sum_steps); median(st.p.day$sum_steps)
+```
+
+There is a small difference of `r sprintf("%.2f",(mean(st.p.day$sum_steps) - median(st.p.day$sum_steps)))` steps for the data without NA's. Here the mean is `r sprintf("%.2f",mean(st.p.day$sum_steps))` and the median is `r sprintf("%.2f",median(st.p.day$sum_steps))`.
+
+
+### **5. Are there differences in activity patterns between weekdays and weekends?** 
+
+#### **5.1. Create a "weekday"/"weekend"-factor**
+
+```{r 5.1. weekend-factor}
+
+dta.sim$date <- as.Date(dta.sim$date)
+dta.sim <- mutate(dta.sim, wd = weekdays(date))
+dta.sim <- dta.sim %>%
+        mutate(wd.we = as.factor(ifelse(wd %in% c("Saturday", "Sunday") == TRUE,
+                                        "weekend", "weekday")))
+```
+
+
+#### **5.2. Make a time series panel plot: 5-minute interval and average number of steps**
+
+```{r 5.2 time series plot}
+
+panel.dta <- summarise(
+        group_by(dta.sim, wd.we,interval), 
+        mean(steps))
+
+library(lattice)
+
+with (panel.dta, 
+      xyplot(`mean(steps)`~ interval|wd.we, type="l", 
+             xlab = "Interval",
+             ylab="Number of steps",
+             layout=c(1,2)))
+```
+
+This graph shows several peaks of steps taken throughout the weekend days. Whereas 
+weekdays only show one peak at half past nine (`r max5$interval`) in the morning.
