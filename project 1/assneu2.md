@@ -5,7 +5,7 @@
 Details about this course can be found [here](https://www.coursera.org/learn/reproducible-research). The author of this
 unremarkable markdown is [Sebastian Kraus](https://www.linkedin.com/in/sebastiankrausjena/) and it's his first one. Feedback is highly appreciated :).
 
-###**1. Loading and preprocessing the data**
+### **1. Loading and preprocessing the data**
 
 #### **1.1 Load the data**
 
